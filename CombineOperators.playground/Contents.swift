@@ -3,6 +3,119 @@ import Combine
 
 var subscriptions = Set<AnyCancellable>()
 
+//使用append在队列之后补充信息 2023-03-15(Wed) 05:53:51
+example(of: "append") {
+    let numberPublisher = (3...5).publisher
+    let publisher = PassthroughSubject<Int,Never>()
+    let passthroughPublisher = PassthroughSubject<Int,Never>()
+    
+    numberPublisher
+        .append(6,7) //补上具体的消息数据
+        .append(8,9) //补上插入具体的消息数据
+        .sink(receiveCompletion: { value in
+            print("First append output number: \(value) \n")
+        }, receiveValue: { value in
+            print(value)
+        })
+        .store(in: &subscriptions)
+    /*
+     3
+     4
+     5
+     6
+     7
+     8
+     9
+     First append output number: finished
+     */
+    
+    publisher
+        .append(3,4) //在手动publisher后面补上信息数据
+        .sink(receiveCompletion: { value in
+            print("Second append manual publisher output number: \(value) \n")
+        }, receiveValue: { value in
+            print(value)
+        })
+        .store(in: &subscriptions)
+    publisher.send(1)
+    publisher.send(2)
+    publisher.send(completion: .finished)//发送完成之后，手动信息与补充的信息才发送
+    /*
+     1
+     2
+     3
+     4
+     Second append manual publisher output number: finished
+     */
+    
+    
+    numberPublisher
+        .append([6,7]) //补充消息队列
+        .append(Set(8...10)) //再次补充消息集合
+        .sink(receiveCompletion: { value in
+            print("Third append publisher number: \(value) \n")
+        }, receiveValue: { value in
+            print(value)
+        })
+        .store(in: &subscriptions)
+    /*
+     3
+     4
+     5
+     6
+     7
+     10
+     8
+     9
+     Third append publisher number: finished
+     */
+    
+    
+    numberPublisher
+        .append([6,7].publisher) //补充消息队列的publisher
+        .append(Set(8...9).publisher) //补充插入消息集合的publisher
+        .sink(receiveCompletion: { value in
+            print("Forth append publisher number: \(value) \n")
+        }, receiveValue: { value in
+            print(value)
+        })
+        .store(in: &subscriptions)
+    /*
+     3
+     4
+     5
+     6
+     7
+     9
+     8
+     Forth append publisher number: finished
+     */
+    
+    numberPublisher
+        .append(passthroughPublisher) //补上手动消息队列
+        .sink(receiveCompletion: { value in
+            print("Fifth append publisher number: \(value) \n")
+        }, receiveValue: { value in
+            print(value)
+        })
+        .store(in: &subscriptions)
+    
+    passthroughPublisher.send(6)
+    passthroughPublisher.send(7) //手动消息队列发送消息
+    passthroughPublisher.send(completion: .finished) //发送完毕
+    /*
+     3
+     4
+     5
+     6
+     7
+     Fifth append publisher number: finished
+     */
+    
+}
+
+
+
 //使用prepend在消息队列之前插入消息 2023-03-14(Tue) 21:39:58
 example(of: "prepend") {
     let numberPublisher = (3...5).publisher
