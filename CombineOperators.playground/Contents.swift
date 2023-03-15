@@ -1,10 +1,66 @@
 import Combine
+import Foundation
+import UIKit
 
 //https://github.com/hesperhu/CombineOperators/blob/main/CombineOperators.playground/Contents.swift
 
 var subscriptions = Set<AnyCancellable>()
 
-//switchToLatest用来处理多个消息队列中最新的的消息 2023-03-15(Wed) 08:01:01 
+
+
+//switchToLatest可以处理最新的消息，取消没有处理完的消息 2023-03-15(Wed) 08:35:00
+/* switchToLatest
+This operator works with an upstream publisher of publishers, flattening the stream of elements to appear as if they were coming from a single stream of elements. It switches the inner publisher as new ones arrive but keeps the outer publisher constant for downstream subscribers.
+ When this operator receives a new publisher from the upstream publisher, it cancels its previous subscription. Use this feature to prevent earlier publishers from performing unnecessary work, such as creating network request publishers from frequently updating user interface publishers.
+ */
+example(of: "switchToLatest -- networking") {
+    let url = URL(string: "https://source.unsplash.com/random")!
+    func getImage() -> AnyPublisher<UIImage?, Never> {
+        URLSession.shared
+            .dataTaskPublisher(for: url)
+            .map { data, response in
+                print(Date.now,"Network response:", response.suggestedFilename ?? " ")
+                return UIImage(data: data)
+            }
+            .replaceError(with: nil)
+            .eraseToAnyPublisher()
+    }//用返回publisher的方式返回数据
+    
+    let taps = PassthroughSubject<Void, Never>()
+    taps
+        .map { _ in
+            getImage() //这个转换func返回的是publisher
+        } //map返回的是getImage func返回的publisher的publisher
+        .switchToLatest()
+        .compactMap({ image in
+            image //unwrap optional
+        })
+        .sink { image in
+            print(Date.now, "Image received: Size: ", image.size)
+        }
+        .store(in: &subscriptions)
+    
+    taps.send() //第一次获取图片，一般会成功处理，如果网络缓慢，会被第三次获取行为取消
+    
+    DispatchQueue.main.asyncAfter(deadline: .now() + 5 ) {
+        taps.send() //第二次获取图片，被0.1秒后的第三次获取的图片取消处理
+    }
+    
+    DispatchQueue.main.asyncAfter(deadline: .now() + 5.1 ) {
+        taps.send() //第三次获取图片，成功处理
+    }
+}
+/*
+ ——— Example of: switchToLatest -- networking ———
+ 2023-03-15 00:40:04 +0000 Network response: photo-1676807882792-1b47bbd603be.jpeg
+ 2023-03-15 00:40:04 +0000 Image received: Size:  (1080.0, 1620.0)
+ 2023-03-15 00:40:12 +0000 Network response: photo-1678297576263-b1be75fc72e3.jpeg
+ 2023-03-15 00:40:12 +0000 Image received: Size:  (1080.0, 1620.0)
+
+ */
+
+
+//switchToLatest用来处理多个消息队列中最新的的消息 2023-03-15(Wed) 08:01:01
 example(of: "switchToLatest") {
     let publisher1 = PassthroughSubject<Int, Never>()
     let publisher2 = PassthroughSubject<Int, Never>()
@@ -36,6 +92,13 @@ example(of: "switchToLatest") {
     publishers.send(completion: .finished)
     
 }
+/*
+ ——— Example of: switchToLatest ———
+ 1
+ 3
+ 5
+ Complete: finished
+ */
 
 //使用append在队列之后补充信息 2023-03-15(Wed) 05:53:51
 example(of: "append") {
