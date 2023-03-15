@@ -1,7 +1,41 @@
-import UIKit
 import Combine
 
+//https://github.com/hesperhu/CombineOperators/blob/main/CombineOperators.playground/Contents.swift
+
 var subscriptions = Set<AnyCancellable>()
+
+//switchToLatest用来处理多个消息队列中最新的的消息 2023-03-15(Wed) 08:01:01 
+example(of: "switchToLatest") {
+    let publisher1 = PassthroughSubject<Int, Never>()
+    let publisher2 = PassthroughSubject<Int, Never>()
+    let publisher3 = PassthroughSubject<Int, Never>()
+    
+    let publishers = PassthroughSubject<PassthroughSubject<Int,Never>,Never>()
+    
+    publishers
+        .switchToLatest() //切换到最新的消息队列中
+        .sink { value in
+            print("Complete: \(value)")
+        } receiveValue: { value in
+            print(value)
+        }
+        .store(in: &subscriptions)
+
+    publishers.send(publisher1) //第一个消息队列激活
+    publisher1.send(1)
+    
+    publishers.send(publisher2) //第二个消息队列激活
+    publisher1.send(2) //第一个消息队列发送的消息被忽略
+    publisher2.send(3) //第二个消息队列发送的消息被处理
+    
+    publishers.send(publisher3) //第三个消息队列激活
+    publisher2.send(4) //第二个消息队列发送的消息被忽略
+    publisher3.send(5) //第三个消息队列发送的消息被处理
+    
+    publisher3.send(completion: .finished)
+    publishers.send(completion: .finished)
+    
+}
 
 //使用append在队列之后补充信息 2023-03-15(Wed) 05:53:51
 example(of: "append") {
@@ -113,8 +147,6 @@ example(of: "append") {
      */
     
 }
-
-
 
 //使用prepend在消息队列之前插入消息 2023-03-14(Tue) 21:39:58
 example(of: "prepend") {
