@@ -6,7 +6,40 @@ import UIKit
 
 var subscriptions = Set<AnyCancellable>()
 
-//使用combineLatest将几个不同的消息队列中的消息进行组合，输出组合式的消息 2023-03-15(Wed) 20:46:38 
+//zip用来从多个消息队列中创建一一对应的消息组合 2023-03-15(Wed) 20:59:22
+example(of: "zip") {
+    let publisher1 = PassthroughSubject<Bool, Never>()
+    let publisher2 = PassthroughSubject<Float, Never>()
+    
+    publisher1
+        .zip(publisher2)
+        .sink { value in
+            print(value)
+        } receiveValue: { first, second in
+            print(first, second)
+        }
+        .store(in: &subscriptions)
+    
+    publisher1.send(true)
+    publisher2.send(1.02)
+    publisher2.send(2.34)
+    publisher1.send(false)
+    publisher1.send(true)
+    publisher2.send(3.14)
+    
+    publisher1.send(completion: .finished)
+    publisher2.send(completion: .finished)
+}
+/*
+ ——— Example of: zip ———
+ true 1.02
+ false 2.34
+ true 3.14
+ finished
+ */
+
+
+//使用combineLatest将几个不同的消息队列中的消息进行组合，输出组合式的消息 2023-03-15(Wed) 20:46:38
 example(of: "combineLatest") {
     let publisher1 = PassthroughSubject<Bool, Never>()
     let publisher2 = PassthroughSubject<Float, Never>()
